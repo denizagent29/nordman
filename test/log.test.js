@@ -71,10 +71,21 @@ test('program change and pitch bend are recognisable, not lumped in as unknown',
 });
 
 test('an unrecognised message is preserved in full rather than dropped', () => {
+  // 0xF3 (song select) is a real-time byte we do not model — unlike clock it
+  // must keep its bytes in the text, so an unknown message is still readable.
   const log = createLog({ now: () => 0 });
-  const line = log.feed(Uint8Array.from([0xf8]));
+  const line = log.feed(Uint8Array.from([0xf3, 0x05]));
   assert.equal(line.kind, 'other');
-  assert.ok(line.text.includes('0xf8'));
+  assert.ok(line.text.includes('0xf3'));
+});
+
+test('clock is told apart from an unknown real-time byte', () => {
+  // The distinction matters: clock is expected and ignored, anything else is
+  // a message nobody has seen before and has to survive in the log.
+  const log = createLog({ now: () => 0 });
+  assert.equal(log.feed(Uint8Array.from([0xf8])).kind, 'clock');
+  assert.equal(log.feed(Uint8Array.from([0xfe])).kind, 'clock', 'active sensing too');
+  assert.equal(log.feed(Uint8Array.from([0xf3])).kind, 'other');
 });
 
 test('SysEx is captured, since a device inquiry reply is evidence', () => {

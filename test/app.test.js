@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { createStatusLine, controlWidget } from '../src/app.js';
+import { createLog } from '../src/log.js';
 
 // --- a very small DOM ------------------------------------------------------
 
@@ -194,3 +195,79 @@ test('every element the app queries by id exists in the page', () => {
 function readIndex() {
   return readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 }
+
+// ---------------------------------------------------------------------------
+// Live regions
+// ---------------------------------------------------------------------------
+
+test('there are exactly two live regions, and both are polite', () => {
+  // Two live regions both firing on a timer is how "0 events" ends up
+  // interrupting the status line it exists to serve. The count of live
+  // attributes only — a comment mentioning aria-live is not a live region.
+  const html = readIndex().replace(/<!--[\s\S]*?-->/g, '');
+  assert.equal((html.match(/aria-live=/g) || []).length, 2);
+  assert.equal((html.match(/aria-live="polite"/g) || []).length, 2);
+  assert.doesNotMatch(html, /aria-live="assertive"/);
+});
+
+test('the capture count is only written to when its text changes', () => {
+  // The bug this guards: the panel polls twice a second, and assigning an
+  // unchanged string to textContent still counts as a change to a live
+  // region. NVDA then repeats the sentence forever.
+  const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(src, /if \(text !== summaryText\)/);
+  assert.doesNotMatch(src, /summaryNode\.textContent = `\$\{/,
+    'no unconditional write to the live summary');
+});
+
+test('an empty capture says so in words, not a bare zero', () => {
+  const log = createLog({});
+  assert.equal(log.summaryText, 'Nothing heard yet — is the instrument on?');
+});
+
+test('the capture count breaks down what was heard', () => {
+  const log = createLog({});
+  log.feed(Uint8Array.from([0xb0, 19, 42]));
+  assert.match(log.summaryText, /^1 MIDI event heard/);
+  log.feed(Uint8Array.from([0x90, 60, 100]));
+  assert.match(log.summaryText, /2 MIDI events heard/);
+  assert.match(log.summaryText, /1 controllers/);
+  assert.match(log.summaryText, /1 notes/);
+});
+
+test('clearing resets the spoken count', () => {
+  const log = createLog({});
+  log.feed(Uint8Array.from([0xb0, 19, 42]));
+  log.clear();
+  assert.equal(log.summaryText, 'Nothing heard yet — is the instrument on?');
+});
+
+test('a running clock is counted and spoken but never listed', () => {
+  // The bug this guards: the instrument sends clock from the moment it is on,
+  // so a plain log filled with thousands of identical lines and buried the
+  // knob sweep that learn mode exists to capture.
+  const log = createLog({});
+  for (let i = 0; i < 200; i++) log.feed(Uint8Array.from([0xf8]));
+  assert.equal(log.lines.length, 0, 'nothing listed');
+  assert.equal(log.counters.clock, 200);
+  assert.match(log.summaryText, /clock running/);
+  log.feed(Uint8Array.from([0xb0, 19, 42]));
+  assert.equal(log.lines.length, 1, 'a real event still gets a line');
+  assert.match(log.summaryText, /201 MIDI events heard/);
+});
+
+test('the clock tells us the instrument is alive even when nothing is touched', () => {
+  // Silence from the Nord is ambiguous: powered off, or on and idle. Clock
+  // removes the ambiguity, which is the whole reason it is counted at all.
+  const idle = createLog({});
+  idle.feed(Uint8Array.from([0xf8]));
+  assert.match(idle.summaryText, /clock running/);
+  assert.doesNotMatch(idle.summaryText, /is the instrument on/);
+});
+
+test('a note burst is heard as one announcement, not five hundred lines', () => {
+  const log = createLog({});
+  for (let i = 0; i < 500; i++) log.feed(Uint8Array.from([0x90, 60, 100]));
+  assert.equal(log.lines.length, 0);
+  assert.equal(log.counters.note, 500);
+});

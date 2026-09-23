@@ -58,9 +58,19 @@ function main() {
   const logNode = $('#log');
   const summaryNode = $('#log-summary');
 
+  // Only touch the summary when its text actually differs. A live region
+  // announces on *change*, and assigning the same string to textContent is
+  // still a change as far as the DOM is concerned — so a two-per-second timer
+  // that writes unconditionally turns "0 events" into a stutter that buries
+  // the status line under it. The text is identical; the write is what talks.
+  let summaryText = null;
   const refresh = () => {
     renderLog(app.session, logNode);
-    summaryNode.textContent = `${app.session.log.lines.length} MIDI events captured.`;
+    const text = app.session.log.summaryText;
+    if (text !== summaryText) {
+      summaryText = text;
+      summaryNode.textContent = text;
+    }
   };
 
   // The capture updates on a slow timer rather than per message: a knob burst

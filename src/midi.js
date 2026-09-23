@@ -36,6 +36,24 @@ export function isPitchBend(bytes) {
   return bytes.length >= 3 && (bytes[0] & 0xf0) === 0xe0;
 }
 
+// System real-time: clock, start, continue, stop, active sensing. One byte
+// each, so they are checked before anything that reads a second byte. A Nord
+// sends MIDI clock as soon as it is on, which is why this has to be recognised
+// rather than logged as an unknown message.
+export function isClock(bytes) {
+  if (!bytes.length) return false;
+  const b = bytes[0];
+  return b >= 0xf8 && b <= 0xff;
+}
+
+export function isNoteOn(bytes) {
+  return bytes.length >= 3 && (bytes[0] & 0xf0) === 0x90 && bytes[2] > 0;
+}
+
+export function isNoteOff(bytes) {
+  return bytes.length >= 3 && ((bytes[0] & 0xf0) === 0x80 || ((bytes[0] & 0xf0) === 0x90 && bytes[2] === 0));
+}
+
 // 14-bit value, centre = 0.
 export function pitchBendValue(bytes) {
   return (bytes[2] << 7 | bytes[1]) - 8192;

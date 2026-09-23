@@ -20,7 +20,7 @@
 // Everything here is pure: no DOM, no Web MIDI, no clock of its own. The
 // transport hands in already-parsed messages and the current time.
 
-import { ccNumber, ccValue, channel, isCc, isPitchBend, pitchBendValue,
+import { ccNumber, ccValue, channel, isCc, isClock, isPitchBend, pitchBendValue,
          isProgramChange, isSysex, sysexPayload, toBytes } from './midi.js';
 
 // A single held note produces note-on, note-off, and for a pedal-heavy player
@@ -108,11 +108,14 @@ export function createLog({
 } = {}) {
   const lines = [];
   const nrpn = createNrpnTracker();
-  let counters = { cc: 0, note: 0, nrpn: 0, sysex: 0, other: 0 };
+  let counters = { cc: 0, note: 0, nrpn: 0, sysex: 0, clock: 0, other: 0 };
 
-  function record(kind, text, extra = {}) {
+  // `counted` is false for lines that are shown but not kept in the list —
+  // return the same thing and the caller says nothing new for the rest of the
+  // session.
+  function record(kind, text, extra = {}, { counted = true } = {}) {
     const line = { seq: lines.length + 1, kind, text, at: now(), ...extra };
-    lines.push(line);
+    if (counted) lines.push(line);
     counters[kind] = (counters[kind] || 0) + 1;
     if (lines.length > limit) lines.splice(0, lines.length - limit);
     return line;
@@ -123,6 +126,14 @@ export function createLog({
     const b = toBytes(raw);
     if (!b.length) return null;
 
+    // The clock keeps ticking whether or not anyone plays. Recording it would
+    // fill the capture with thousands of identical lines and drown the sweep
+    // that is the entire point of learn mode, so it is counted and spoken but
+    // not listed.
+    if (isClock(b)) {
+      return record('clock', 'MIDI clock', { bytes: [...b] }, { counted: false });
+    }
+
     if (isSysex(b)) {
       return record('sysex', `SysEx: ${hexDump(b)}`,
         { bytes: [...b], payload: [...sysexPayload(b)] });
@@ -130,6 +141,9 @@ export function createLog({
 
     if (filterNotes && isNoteMessage(b)) {
       counters.note++;
+      // Counted only: the notes are announced by the status line's own
+      // sentence when playing starts, and a line per keypress would bury
+      // every knob in the capture.
       return null;
     }
 
@@ -209,9 +223,33 @@ export function createLog({
       .map((e) => ({ ...e, values: undefined }));
   }
 
+  // The one-line count that sits above the capture. A property rather than a
+  // function so the caller can compare it against what it last displayed —
+  // a live region announces on change, so the caller must only write when the
+  // string differs, and it cannot know that without being handed the string.
+  const summaryText = () => {
+    const c = counters;
+    const recorded = lines.length;
+    const total = recorded + c.note + c.clock;
+    if (total === 0) return 'Nothing heard yet — is the instrument on?';
+    const bits = [];
+    // Switches land in `cc` too, so this is "controllers", not "knobs": a
+    // pedal down and a knob moved are the same message shape.
+    if (c.cc) bits.push(`${c.cc} controllers`);
+    if (c.nrpn) bits.push(`${c.nrpn} NRPN`);
+    if (c.note) bits.push(`${c.note} notes`);
+    if (c.clock) bits.push('clock running');
+    if (c.sysex) bits.push(`${c.sysex} sysex`);
+    if (c.other) bits.push(`${c.other} other`);
+    const plural = total === 1 ? '' : 's';
+    return `${total} MIDI event${plural} heard — ${bits.join(', ')}.`;
+  };
+
   return {
     feed, toText, summary, enumCandidates, lines,
     get counters() { return { ...counters }; },
-    clear() { lines.length = 0; counters = { cc: 0, note: 0, nrpn: 0, sysex: 0, other: 0 }; nrpn.reset(); },
+    // Read each time, never cached: the panel polls it twice a second.
+    get summaryText() { return summaryText(); },
+    clear() { lines.length = 0; counters = { cc: 0, note: 0, nrpn: 0, sysex: 0, clock: 0, other: 0 }; nrpn.reset(); },
   };
 }
