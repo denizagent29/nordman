@@ -54,7 +54,7 @@ export const NORD_STAGE_4 = {
     { cc: 13, key: 'organALevel', group: 'organ', name: 'Organ A level', kind: 'range' },
     { cc: 14, key: 'organBLevel', group: 'organ', name: 'Organ B level', kind: 'range' },
     { cc: 12, key: 'organOctaveShift', group: 'organ', name: 'Organ octave shift', kind: 'bipolar' },
-    { cc: 15, key: 'organPreset', group: 'organ', name: 'Organ preset', kind: 'range' },
+    { cc: 15, key: 'organPreset', group: 'organ', name: 'Organ preset', kind: 'range', sharedWith: 'synthVibratoPedal' },
     { nrpn: [2, 16], key: 'organModel', group: 'organ', name: 'Organ model', kind: 'enum' },
     { scene: 1, cc: 9, key: 'organEnable1', group: 'organ', name: 'Organ enable, scene 1', kind: 'switch' },
     { scene: 2, cc: 2, key: 'organEnable2', group: 'organ', name: 'Organ enable, scene 2', kind: 'switch' },
@@ -107,7 +107,10 @@ export const NORD_STAGE_4 = {
     { cc: 48, key: 'synthGlideRate', group: 'synth', name: 'Synth glide rate', kind: 'range' },
     { cc: 45, key: 'synthVibratoAmount', group: 'synth', name: 'Synth vibrato amount', kind: 'range' },
     { cc: 46, key: 'synthVibratoRate', group: 'synth', name: 'Synth vibrato rate', kind: 'range' },
-    { cc: 15, key: 'synthVibratoPedal', group: 'synth', name: 'Synth vibrato pedal', kind: 'switch', receiveOnly: true },
+    // CC 15 is shared with Organ preset: the same address means the Organ knob
+    // while the Organ section is focused and the vibrato pedal while Synth is.
+    // It is a receive-only pedal CC, so it never arrives as a panel move.
+    { cc: 15, key: 'synthVibratoPedal', group: 'synth', name: 'Synth vibrato pedal', kind: 'switch', receiveOnly: true, sharedWith: 'organPreset' },
     { cc: 52, key: 'synthOscAttack', group: 'synth', name: 'Osc envelope attack', kind: 'range' },
     { cc: 53, key: 'synthOscDecay', group: 'synth', name: 'Osc envelope decay', kind: 'range' },
     { cc: 57, key: 'synthOscRelease', group: 'synth', name: 'Osc envelope release', kind: 'range' },
