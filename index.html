@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nord manager</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1rem 1rem 4rem;
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    max-width: 70rem;
+  }
+  h1 { font-size: 1.3rem; margin: 0 0 .75rem; }
+  h2 { font-size: 1.05rem; margin: 1.5rem 0 .5rem; }
+
+  /* The status line is the screen reader's whole output. It sits first in the
+     document and is sticky, so it is visible and reachable without hunting. */
+  #status-region {
+    position: sticky; top: 0; z-index: 2;
+    background: Canvas; border: 2px solid currentColor; border-radius: .4rem;
+    padding: .6rem .8rem; margin-bottom: 1rem;
+  }
+  #status-label { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+  #status { font-size: 1.25rem; font-weight: 600; min-height: 1.5em; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin-bottom: .5rem; }
+  .bar label { font-weight: 600; }
+  select, input[type=range], button { font: inherit; }
+  select { padding: .3rem; max-width: 22rem; }
+  button { padding: .45rem 1rem; cursor: pointer; }
+
+  #panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: 1rem; }
+  fieldset { border: 1px solid currentColor; border-radius: .4rem; padding: .6rem .8rem .8rem; margin: 0; }
+  legend { font-weight: 700; padding: 0 .35rem; }
+
+  .ctrl { display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; align-items: center; padding: .35rem 0; }
+  .ctrl > label { grid-column: 1 / -1; font-weight: 500; }
+  .ctrl input[type=range] { width: 100%; }
+  .ctrl .readout { min-width: 7rem; font-variant-numeric: tabular-nums; }
+  .ctrl .hint { grid-column: 1 / -1; font-size: .82rem; opacity: .75; }
+  .ctrl.disabled { opacity: .6; }
+
+  textarea { width: 100%; min-height: 12rem; font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Nord manager</h1>
+
+<!-- aria-live="polite", never assertive: an assertive region interrupts NVDA
+     mid-sentence, and the point is to hear the knob, not to be shouted at. -->
+<div id="status-region">
+  <div id="status-label">Last change</div>
+  <div id="status" role="status" aria-live="polite" aria-atomic="true">Not connected yet.</div>
+</div>
+
+<div class="bar">
+  <label for="model">Model</label>
+  <select id="model">
+    <option value="nord-piano-6">Nord Piano 6</option>
+    <option value="nord-stage-4">Nord Stage 4</option>
+  </select>
+
+  <label for="input-port">Input</label>
+  <select id="input-port"><option value="">—</option></select>
+
+  <label for="output-port">Output</label>
+  <select id="output-port"><option value="">—</option></select>
+
+  <button id="connect" type="button">Connect</button>
+</div>
+
+<p class="hint">Chrome or Edge, over https. The instrument has to be plugged in
+before Connect, and the browser asks once for permission to use it.</p>
+
+<h2 id="panel-title">Nord Piano 6</h2>
+<!-- role="toolbar" is what puts NVDA into forms mode; role="application" does
+     not, and without forms mode the arrow keys scroll instead of navigating. -->
+<div id="panel" role="toolbar" aria-labelledby="panel-title" aria-orientation="vertical"></div>
+
+<h2>Capture</h2>
+<p class="hint">Everything the instrument sends, and everything sent to it.
+Copy with the button, or download the file. Notes are counted rather than
+listed, so a burst of playing does not drown the knob moves.</p>
+<div class="bar">
+  <button id="copy-log" type="button">Copy all</button>
+  <button id="download-log" type="button">Download .txt</button>
+  <button id="clear-log" type="button">Clear</button>
+  <span id="log-summary" role="status" aria-live="polite"></span>
+</div>
+<label class="sr-only" for="log">MIDI capture</label>
+<textarea id="log" readonly aria-describedby="log-summary"></textarea>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

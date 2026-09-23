@@ -2,12 +2,17 @@
 // phrased, so the screen reader hears the same wording everywhere and the
 // strings can be pluralised/translated without touching the transport code.
 //
-// Rules learned from how the owner works (blind, NVDA/Elten):
-//   - the value comes FIRST: an interruption is often clipped, the number is
-//     what matters, the controller name is allowed to be cut off;
+// The owner is blind (NVDA/Elten), which drives the phrasing:
+//   - the NAME comes first, the value after: a polite announcement that gets
+//     cut off loses its tail, not its head, so "Reverb mix, 42" clipped to
+//     "Reverb mix" still tells him which knob moved — the reverse tells him a
+//     number with no owner;
 //   - "on"/"off" rather than "1"/"0" for switches;
 //   - no emoji, no markdown, plain sentences — this goes into aria-live and
 //     then through TTS.
+//
+// The order is not settled: name-first is the current choice, value-first is
+// defensible for a knob he is already holding. Ask before changing it.
 
 export function formatValue(def, value) {
   if (!def) return String(value);

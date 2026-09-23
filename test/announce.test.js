@@ -33,8 +33,9 @@ test('a bipolar knob says which side of centre it is on', () => {
   assert.equal(formatValue(bipolar, 54), 'minus 10 (54)');
 });
 
-test('the value comes first in the sentence', () => {
-  // The number is what matters if the announcement gets clipped.
+test('the name comes first and the value after it', () => {
+  // Order is deliberate: a clipped announcement should lose the number, not
+  // the name of the knob that moved.
   assert.equal(describeChange(knob, { value: 42 }), 'Reverb mix, 42');
 });
 
