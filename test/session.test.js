@@ -49,8 +49,8 @@ test('a knob that settles is announced once, by name and value', () => {
   session.feed(cc(19, 90));
   assert.deepEqual(session.tick(), [], 'still moving — nothing yet');
   clock.advance(200);
-  assert.deepEqual(session.tick(), ['Reverb type, 90']);
-  assert.deepEqual(heard, ['Reverb type, 90']);
+  assert.deepEqual(session.tick(), ['Reverb type, value 90']);
+  assert.deepEqual(heard, ['Reverb type, value 90']);
 });
 
 test('a knob still being turned is not announced on every message', () => {
@@ -70,7 +70,7 @@ test('two knobs settling together arrive in one line, not two', () => {
   session.feed(cc(113, 1));
   clock.advance(200);
   const out = tick();
-  assert.deepEqual(out, ['Reverb type, 1 and Reverb dry/wet, 1']);
+  assert.deepEqual(out, ['Reverb type, value 1 and Reverb dry/wet, 1']);
 });
 
 test('two knobs settling apart are still two separate announcements', () => {
@@ -78,7 +78,7 @@ test('two knobs settling apart are still two separate announcements', () => {
   const { session, clock, tick } = harness();
   session.feed(cc(19, 1));
   clock.advance(200);
-  assert.deepEqual(tick(), ['Reverb type, 1']);
+  assert.deepEqual(tick(), ['Reverb type, value 1']);
   session.feed(cc(113, 1));
   clock.advance(200);
   assert.deepEqual(tick(), ['Reverb dry/wet, 1']);
@@ -153,7 +153,7 @@ test('a knob nudged away and back does not re-announce the value it never left',
   const { session, clock } = harness();
   session.feed(cc(19, 5));
   clock.advance(200);
-  assert.deepEqual(session.tick(), ['Reverb type, 5']);
+  assert.deepEqual(session.tick(), ['Reverb type, value 5']);
   session.feed(cc(19, 9));            // nudged away…
   session.feed(cc(19, 5));            // …and back within the same burst
   clock.advance(200);
@@ -243,7 +243,7 @@ test('flushAll emits whatever was still settling, for a deliberate disconnect', 
   const { session } = harness();
   session.feed(cc(19, 77));
   const out = session.flushAll();
-  assert.deepEqual(out, ['Reverb type, 77']);
+  assert.deepEqual(out, ['Reverb type, cathedral']);
 });
 
 test('reset forgets the pending knobs and the layer focus', () => {
@@ -316,8 +316,8 @@ test('a knob still speaks while the other hand is playing', () => {
   session.feed(cc(19, 90));
   session.feed(noteOff(64));
   clock.advance(200);
-  assert.deepEqual(session.tick(), ['Reverb type, 90']);
-  assert.deepEqual(heard, ['Reverb type, 90']);
+  assert.deepEqual(session.tick(), ['Reverb type, value 90']);
+  assert.deepEqual(heard, ['Reverb type, value 90']);
 });
 
 test('playing is still counted in the capture', () => {
@@ -334,7 +334,7 @@ test('turning the layer focus says which layer the next edit lands on', () => {
   session.feed(cc(109, 127));          // piano layer focus → B
   clock.advance(200);
   session.tick();
-  assert.ok(heard.includes('Piano layer: B'), heard.join(' | '));
+  assert.ok(heard.includes('Layer edit focus: B'), heard.join(' | '));
   assert.equal(session.focus.piano, 'B');
 });
 
@@ -348,7 +348,7 @@ test('the focus is announced once, not on every repeat of the same value', () =>
   session.feed(cc(109, 0));
   clock.advance(200);
   session.tick();
-  assert.equal(heard.filter((h) => h.startsWith('Piano layer:')).length, 1, heard.join(' | '));
+  assert.equal(heard.filter((h) => h.startsWith('Layer edit focus:')).length, 1, heard.join(' | '));
 });
 
 test('an unmapped NRPN still reports its address rather than a name', () => {

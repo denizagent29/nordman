@@ -50,11 +50,23 @@ export const NORD_PIANO_6 = {
     { cc: 66, key: 'sostenuto', group: 'global', name: 'Sostenuto pedal', kind: 'switch', receiveOnly: true },
     { cc: 67, key: 'soft', group: 'global', name: 'Soft pedal', kind: 'switch', receiveOnly: true },
     { cc: 11, key: 'expression', group: 'global', name: 'Expression pedal', kind: 'range', receiveOnly: true },
-    // The focus knob is an enum in disguise: a Nord sends it as a plain CC, but
-    // its positions are discrete, so the number is spoken as a section name.
-    // 0 is the Synth section, 1 the Piano, 2 the Effects, 3 the Organ.
-    { cc: 31, key: 'fxFocus', group: 'global', name: 'Focus', kind: 'enum',
-      values: { 0: 'Synth focus', 1: 'Piano focus', 2: 'Effects focus', 3: 'Organ focus' } },
+    // What CC 31 is: NOT a knob and NOT a section address. This is the only
+    // row here whose meaning was checked against the instrument rather than
+    // read off the manual, so it is written down as measured (capture
+    // 2026-09-23): the owner turned the Piano section's focus knob while
+    // watching this log, and the message came out as the constant 0 —
+    // `CC 31 = 0` — with the actual focus travel carried by CC 72 alongside it
+    // ("31→[0]  72→[43]"). An earlier version of this map called CC 31 an
+    // effects-focus enum; that came from the manual's list and from a wrong
+    // guess about a number the owner had merely seen, and it made the site
+    // announce a section the instrument was not on. The manual does not
+    // document a bare CC 31 at all.
+    //
+    // So it is mapped sendable-only: a value written into it by mistake is
+    // not passed off as news. When the owner sweeps 31 across its positions
+    // and reports what he hears, this becomes a real enum again.
+    { cc: 31, key: 'fxFocus', group: 'global', name: 'Focus', kind: 'range',
+      sendableOnly: true },
     { cc: 75, key: 'fxGroupPiano', group: 'global', name: 'Effects group, Piano', kind: 'range' },
     { cc: 76, key: 'fxGroupSynth', group: 'global', name: 'Effects group, Synth', kind: 'range' },
 
@@ -62,21 +74,43 @@ export const NORD_PIANO_6 = {
     // The two positions of this one knob are the two piano layers, not on/off,
     // so the value is spoken as the layer: "Piano layer A enabled". A raw 0
     // reads as "off" on a switch and tells the player nothing.
-    { cc: 72, key: 'pianoLayerEnable', group: 'piano', name: 'Piano layer enable', kind: 'enum',
-      values: { 0: 'Piano layer A enabled', 1: 'Piano layer B enabled' },
+    //
+    // The three values are MEASURED, not inferred (capture 2026-09-23): the
+    // knob is a three-position switch, and the owner's A / off / B walk came
+    // out as 0 / 43 / 85 — a position knob, not a two-state button. A version
+    // that read 0/1 was wrong: on the instrument the second position sends 85,
+    // so it would have been announced as an unknown value.
+    { cc: 72, key: 'pianoLayerEnable', group: 'piano', name: 'Piano layer',
+      kind: 'enum', values: { 0: 'off', 43: 'layer A', 85: 'layer B' },
       offIsSilent: true },
-    { cc: 109, key: 'pianoLayerFocus', group: 'piano', name: 'Piano layer', kind: 'enum',
-      values: { 0: 'A', 1: 'B' } },
+    { cc: 109, key: 'pianoLayerFocus', group: 'piano', name: 'Layer edit focus', kind: 'enum',
+      values: { 0: 'A', 127: 'B' } },
     { cc: 34, key: 'pianoLayerALevel', group: 'piano', name: 'Piano layer A level', kind: 'range' },
     { cc: 56, key: 'pianoLayerBLevel', group: 'piano', name: 'Piano layer B level', kind: 'range' },
     { cc: 35, key: 'pianoOctaveShift', group: 'piano', name: 'Piano octave shift', kind: 'bipolar' },
     { cc: 36, key: 'pianoSustainPedal', group: 'piano', name: 'Piano sustain pedal', kind: 'switch', receiveOnly: true },
     { cc: 37, key: 'pianoVolumePedal', group: 'piano', name: 'Piano volume pedal', kind: 'range', receiveOnly: true },
     { cc: 27, key: 'pianoTimbre', group: 'piano', name: 'Piano timbre', kind: 'range' },
-    { cc: 24, key: 'pianoKbTouch', group: 'piano', name: 'Piano keyboard touch', kind: 'enum' },
+    // Three positions, and the POSITIONS are measured (capture 2026-09-23): the
+    // owner walked it up and back four times and the instrument sent 0 / 64 /
+    // 127, coming back to 0. `enumCandidates()` calls a knob like this a
+    // 'wobble', because its first value equals its last and the sweep test
+    // wants a net travel — worth knowing, because this list is where a genuine
+    // three-position switch is distinguished from a knob that was merely
+    // nudged. The NAMES are the Nord panel's (Soft / Medium / Hard): not yet
+    // confirmed by ear, so they are a hypothesis until the owner walks it.
+    { cc: 24, key: 'pianoKbTouch', group: 'piano', name: 'Piano keyboard touch', kind: 'enum',
+      values: { 0: 'soft', 64: 'medium', 127: 'hard' } },
     { cc: 23, key: 'pianoPedalNoise', group: 'piano', name: 'Piano pedal noise', kind: 'range' },
     { cc: 25, key: 'pianoUnison', group: 'piano', name: 'Piano unison', kind: 'range' },
-    { cc: 26, key: 'pianoDynComp', group: 'piano', name: 'Piano dynamic compression', kind: 'range' },
+    // Discrete positions, not a continuous amount — the capture shows the
+    // instrument sending only 43 / 85 / 127, never anything between (and 0,
+    // when the owner walked back past the bottom). A slider that can land
+    // between positions is the wrong control for a switch with positions.
+    // Whether these are three or four positions (is 0 a real "off"?) needs one
+    // more walk; the four names are the panel's, marked as the guess they are.
+    { cc: 26, key: 'pianoDynComp', group: 'piano', name: 'Piano dynamic compression', kind: 'enum',
+      values: { 0: 'off', 43: 'low', 85: 'mid', 127: 'high' } },
     // The piano memory: two lines of six slots. The address the instrument
     // sends is not a picture of the sound, so the slot is what gets spoken;
     // the raw value goes into the capture for whoever maps the library.
@@ -151,7 +185,16 @@ export const NORD_PIANO_6 = {
 
     // --- Reverb ------------------------------------------------------------
     { cc: 17, key: 'reverbEnable', group: 'reverb', name: 'Reverb enable', kind: 'switch' },
-    { cc: 19, key: 'reverbType', group: 'reverb', name: 'Reverb type', kind: 'enum' },
+    // Six positions, and the positions are MEASURED (capture 2026-09-23): the
+    // owner swept it through 26 / 51 / 77 / 102 / 127 and back to 0, each value
+    // sent twice. The names below are the Piano 6 panel's six reverb types in
+    // that order — a hypothesis, not a measurement, and the one table here
+    // most worth correcting by ear, since a wrong name is worse than a number
+    // the owner can look up. Until he walks it and says what he hears, treat
+    // the labels as a placeholder: the map is exact about WHICH positions
+    // exist and silent-but-guessing about what they are called.
+    { cc: 19, key: 'reverbType', group: 'reverb', name: 'Reverb type', kind: 'enum',
+      values: { 0: 'room', 26: 'stage', 51: 'hall', 77: 'cathedral', 102: 'plate', 127: 'spring' } },
     { cc: 113, key: 'reverbDryWet', group: 'reverb', name: 'Reverb dry/wet', kind: 'range' },
     { cc: 18, key: 'reverbBrightDark', group: 'reverb', name: 'Reverb bright/dark', kind: 'bipolar' },
     { cc: 21, key: 'reverbChorale', group: 'reverb', name: 'Reverb chorale', kind: 'range' },
