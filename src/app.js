@@ -19,7 +19,7 @@
 import { createSession, MAPS, mapById, indexControls } from './session.js';
 import { createTransport, isSupported, unsupportedReason, identityFromMessage } from './transport.js';
 import { resolveModel, modelById, UNKNOWN_MODEL } from './models.js';
-import { formatValue } from './announce.js';
+import { formatValue, slotLabel } from './announce.js';
 import { NORD_PIANO_6 } from '../data/nord-piano-6.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -82,10 +82,28 @@ export function controlWidget(def, { onSend }) {
     ]);
   }
 
-  if (def.kind === 'enum' && def.values) {
+  // Enumerated over a small table of names, switches whose two positions are
+  // spelled out in `values`, and slot banks: all of them are a choice from a
+  // fixed list, so all of them are a select. A slider that can land between
+  // positions is the wrong control for something that has positions.
+  if ((def.kind === 'enum' && def.values) || (def.kind === 'switch' && def.values)) {
     const select = el('select', { id: `c-${def.key}` });
     for (const [value, label] of Object.entries(def.values)) {
       select.append(el('option', { value, text: label }));
+    }
+    select.addEventListener('change', () => send(Number(select.value)));
+    return el('div', { class: 'ctrl' }, [
+      el('label', { for: `c-${def.key}`, text: def.name }), select,
+    ]);
+  }
+
+  if (def.kind === 'slots') {
+    const size = def.groupSize || 6;
+    const groups = def.groupLabels || [];
+    const count = def.slots || size;
+    const select = el('select', { id: `c-${def.key}` });
+    for (let value = 0; value < count; value++) {
+      select.append(el('option', { value, text: slotLabel(def, value) }));
     }
     select.addEventListener('change', () => send(Number(select.value)));
     return el('div', { class: 'ctrl' }, [

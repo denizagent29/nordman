@@ -47,7 +47,9 @@ export const NORD_STAGE_4 = {
     { cc: 67, key: 'soft', group: 'global', name: 'Soft pedal', kind: 'switch', receiveOnly: true },
     { cc: 11, key: 'ctrlPedal', group: 'global', name: 'Control pedal', kind: 'range', receiveOnly: true },
     { cc: 8, key: 'layerScene', group: 'global', name: 'Layer scene', kind: 'range' },
-    { cc: 31, key: 'sectionFxFocus', group: 'global', name: 'Section effects focus', kind: 'range' },
+    // Discrete positions arriving as a plain CC, spoken as section names.
+    { cc: 31, key: 'sectionFxFocus', group: 'global', name: 'Section focus', kind: 'enum',
+      values: { 0: 'Organ focus', 1: 'Piano focus', 2: 'Synth focus', 3: 'Effects focus' } },
     { cc: 118, key: 'sectionEdit', group: 'global', name: 'Section edit', kind: 'range' },
 
     // --- Organ -------------------------------------------------------------
@@ -83,10 +85,10 @@ export const NORD_STAGE_4 = {
     { cc: 35, key: 'pianoOctaveShift', group: 'piano', name: 'Piano octave shift', kind: 'bipolar' },
     { scene: 1, cc: 33, key: 'pianoEnable1', group: 'piano', name: 'Piano enable, scene 1', kind: 'switch' },
     { scene: 2, cc: 3, key: 'pianoEnable2', group: 'piano', name: 'Piano enable, scene 2', kind: 'switch' },
-    { scene: 1, cc: 72, key: 'pianoLayersEnable1', group: 'piano', name: 'Piano layers enable, scene 1', kind: 'range' },
-    { scene: 2, cc: 88, key: 'pianoLayersEnable2', group: 'piano', name: 'Piano layers enable, scene 2', kind: 'range' },
-    { scene: 1, cc: 109, key: 'pianoLayersFocus1', group: 'piano', name: 'Piano layers focus, scene 1', kind: 'range' },
-    { scene: 2, cc: 112, key: 'pianoLayersFocus2', group: 'piano', name: 'Piano layers focus, scene 2', kind: 'range' },
+    { scene: 1, cc: 72, key: 'pianoLayersEnable1', group: 'piano', name: 'Piano layers enable, scene 1', kind: 'enum', values: { 0: 'Piano layer A enabled', 1: 'Piano layer B enabled' }, offIsSilent: true },
+    { scene: 2, cc: 88, key: 'pianoLayersEnable2', group: 'piano', name: 'Piano layers enable, scene 2', kind: 'enum', values: { 0: 'Piano layer A enabled', 1: 'Piano layer B enabled' }, offIsSilent: true },
+    { scene: 1, cc: 109, key: 'pianoLayersFocus1', group: 'piano', name: 'Piano layer', kind: 'enum', values: { 0: 'A', 1: 'B' } },
+    { scene: 2, cc: 112, key: 'pianoLayersFocus2', group: 'piano', name: 'Piano layer', kind: 'enum', values: { 0: 'A', 1: 'B' } },
     { nrpn: [2, 32], key: 'pianoType', group: 'piano', name: 'Piano type', kind: 'enum' },
     { nrpn: [2, 33], key: 'pianoModel', group: 'piano', name: 'Piano model', kind: 'enum' },
     { nrpn: [2, 34], key: 'pianoVariation', group: 'piano', name: 'Piano variation', kind: 'enum' },
@@ -134,8 +136,8 @@ export const NORD_STAGE_4 = {
     { cc: 54, key: 'synthLfoAmount', group: 'synth', name: 'LFO amount', kind: 'range' },
     { scene: 1, cc: 42, key: 'synthEnable1', group: 'synth', name: 'Synth enable, scene 1', kind: 'switch' },
     { scene: 2, cc: 5, key: 'synthEnable2', group: 'synth', name: 'Synth enable, scene 2', kind: 'switch' },
-    { scene: 1, cc: 61, key: 'synthLayersEnable1', group: 'synth', name: 'Synth layers enable, scene 1', kind: 'range' },
-    { scene: 2, cc: 75, key: 'synthLayersEnable2', group: 'synth', name: 'Synth layers enable, scene 2', kind: 'range' },
+    { scene: 1, cc: 61, key: 'synthLayersEnable1', group: 'synth', name: 'Synth layers enable, scene 1', kind: 'enum', values: { 0: 'Synth layer A enabled', 1: 'Synth layer B enabled' }, offIsSilent: true },
+    { scene: 2, cc: 75, key: 'synthLayersEnable2', group: 'synth', name: 'Synth layers enable, scene 2', kind: 'enum', values: { 0: 'Synth layer A enabled', 1: 'Synth layer B enabled' }, offIsSilent: true },
     { scene: 1, cc: 115, key: 'synthLayersFocus1', group: 'synth', name: 'Synth layers focus, scene 1', kind: 'range' },
     { scene: 2, cc: 119, key: 'synthLayersFocus2', group: 'synth', name: 'Synth layers focus, scene 2', kind: 'range' },
     // NRPN-resident synth parameters the manual lists in the 3:x space.

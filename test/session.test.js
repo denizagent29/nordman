@@ -25,7 +25,16 @@ function harness(opts = {}) {
     onStatus: (text) => status.push(text),
     ...opts,
   });
-  return { session, clock, heard, status };
+  // tick() hands back at most one sentence — the whole settle goes out as one
+  // line — so the split between "one announcement" and "several controls in
+  // it" is made here rather than in every test. `heard` is the flat list of
+  // clauses, which is what a test about a single control cares about.
+  const tick = (...args) => {
+    const out = session.tick(...args);
+    for (const line of out) for (const part of line.split(' and ')) heard.push(part);
+    return out;
+  };
+  return { session, clock, heard, status, tick };
 }
 
 test('the maps are indexed by CC number', () => {
@@ -53,14 +62,34 @@ test('a knob still being turned is not announced on every message', () => {
   assert.equal(session.tick().length, 1, 'one announcement for the whole burst');
 });
 
-test('two knobs turned one after another are announced separately', () => {
-  const { session, clock } = harness();
+test('two knobs settling together arrive in one line, not two', () => {
+  // The owner's ask: several controls can change faster than a sentence takes
+  // to read, and one sentence per control talks over itself.
+  const { session, clock, tick } = harness();
   session.feed(cc(19, 1));
   session.feed(cc(113, 1));
   clock.advance(200);
-  const out = session.tick();
-  assert.equal(out.length, 2);
-  assert.deepEqual(out.sort(), ['Reverb dry/wet, 1', 'Reverb type, 1']);
+  const out = tick();
+  assert.deepEqual(out, ['Reverb type, 1 and Reverb dry/wet, 1']);
+});
+
+test('two knobs settling apart are still two separate announcements', () => {
+  // Coalescing must not merge a change made now with one made a minute ago.
+  const { session, clock, tick } = harness();
+  session.feed(cc(19, 1));
+  clock.advance(200);
+  assert.deepEqual(tick(), ['Reverb type, 1']);
+  session.feed(cc(113, 1));
+  clock.advance(200);
+  assert.deepEqual(tick(), ['Reverb dry/wet, 1']);
+});
+
+test('a set longer than the cap is counted, not silently dropped', () => {
+  const { session, clock, tick } = harness();
+  for (const num of [19, 113, 18, 21, 20]) session.feed(cc(num, 40));
+  clock.advance(200);
+  const [line] = tick();
+  assert.match(line, /and 2 more changes$/, line);
 });
 
 test('the same channel is tracked apart from another one', () => {
@@ -69,7 +98,8 @@ test('the same channel is tracked apart from another one', () => {
   session.feed(cc(7, 20, 5));
   clock.advance(200);
   const out = session.tick();
-  assert.equal(out.length, 2, 'two channels are two controllers');
+  assert.equal(out.length, 1, 'one line');
+  assert.match(out[0], /Volume, 20.* and .*Volume, 10|Volume, 10.* and .*Volume, 20/, out[0]);
 });
 
 test('an unmapped CC is announced generically rather than silently dropped', () => {
@@ -88,7 +118,7 @@ test('an NRPN parameter is announced by its map name, not its address', () => {
   session.feed(cc(6, 0));
   session.feed(cc(38, 0));
   clock.advance(200);
-  assert.deepEqual(session.tick(), ['Piano select, 0']);
+  assert.deepEqual(session.tick(), ['Piano select, line A, slot one']);
 });
 
 test('the NRPN transport bytes are never themselves announced as controls', () => {
@@ -105,9 +135,9 @@ test('two NRPN parameters do not collapse into one controller', () => {
   session.feed(cc(99, 3)); session.feed(cc(98, 4)); session.feed(cc(38, 7));
   clock.advance(200);
   const out = session.tick();
-  assert.equal(out.length, 2);
-  assert.ok(out.some((l) => l.startsWith('Piano select')), out.join(' | '));
-  assert.ok(out.some((l) => l.startsWith('Sample select')), out.join(' | '));
+  assert.equal(out.length, 1);
+  assert.match(out[0], /Piano select/, out[0]);
+  assert.match(out[0], /Sample select/, out[0]);
 });
 
 test('a switch is spoken as on or off', () => {
@@ -150,8 +180,9 @@ test('the focused layer is named, and switches when focus moves', () => {
   session.feed(cc(56, 20));
   clock.advance(200);
   const out = session.tick();
-  assert.ok(out.includes('Piano layer A level A, 100'), out.join(' | '));
-  assert.ok(out.includes('Piano layer B level B, 20'), out.join(' | '));
+  const all = out.join(' | ');
+  assert.ok(all.includes('Piano layer A level A, 100'), all);
+  assert.ok(all.includes('Piano layer B level B, 20'), all);
   assert.deepEqual(session.focus.piano, 'B');
 });
 
@@ -294,4 +325,35 @@ test('playing is still counted in the capture', () => {
   for (let i = 0; i < 5; i++) session.feed(noteOn(60 + i, 100));
   assert.equal(session.log.counters.note, 5, 'the log still saw them');
   assert.equal(session.log.lines.length, 0, 'but they are not listed');
+});
+
+test('turning the layer focus says which layer the next edit lands on', () => {
+  // The complaint: enabling a layer while the synth was focused announced the
+  // effect chain's focus instead, and never said where the knobs now point.
+  const { session, clock, heard } = harness();
+  session.feed(cc(109, 127));          // piano layer focus → B
+  clock.advance(200);
+  session.tick();
+  assert.ok(heard.includes('Piano layer: B'), heard.join(' | '));
+  assert.equal(session.focus.piano, 'B');
+});
+
+test('the focus is announced once, not on every repeat of the same value', () => {
+  // The instrument re-sends the focus CC as part of its state dumps; saying
+  // the same thing again is the stutter this project has already fought.
+  const { session, clock, heard } = harness();
+  session.feed(cc(109, 0));
+  clock.advance(200);
+  session.tick();
+  session.feed(cc(109, 0));
+  clock.advance(200);
+  session.tick();
+  assert.equal(heard.filter((h) => h.startsWith('Piano layer:')).length, 1, heard.join(' | '));
+});
+
+test('an unmapped NRPN still reports its address rather than a name', () => {
+  const { session, clock } = harness();
+  session.feed(cc(99, 9)); session.feed(cc(98, 9)); session.feed(cc(38, 26));
+  clock.advance(200);
+  assert.deepEqual(session.tick(), ['NRPN 9:9 = 26']);
 });

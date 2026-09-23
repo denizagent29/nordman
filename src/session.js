@@ -16,7 +16,7 @@
 
 import { ccNumber, ccValue, channel, isCc, toBytes } from './midi.js';
 import { createDebouncer } from './debounce.js';
-import { describeChange, statusLine } from './announce.js';
+import { describeChange, joinAnnouncements, statusLine } from './announce.js';
 import { createLog, controlKey, isNoteMessage } from './log.js';
 import { NORD_PIANO_6 } from '../data/nord-piano-6.js';
 import { NORD_STAGE_4 } from '../data/nord-stage-4.js';
@@ -85,6 +85,15 @@ export function controlLabel(control, layer) {
   return layer ? `${control.name} ${layer}` : control.name;
 }
 
+// A value as a word, for the places that need the label without the sentence
+// around it (the focus announcement). `fallback` is what to say when the map
+// has no label for this exact number — an unnamed focus value is still a layer,
+// and "Piano layer: 127" is not something a person can act on.
+function ccValueLabel(def, value, fallback) {
+  if (def.values && def.values[value] !== undefined) return def.values[value];
+  return fallback !== undefined ? fallback : String(value);
+}
+
 export function createSession({
   map = null,
   modelName = null,
@@ -127,19 +136,35 @@ export function createSession({
     return focus[control.group];
   }
 
-  // The focus CC itself: it *sets* the layer register, it is not an edit.
+  // The focus CC itself: it *sets* the layer register and is announced on its
+  // own terms — "Piano focus: layer B", not a bare "Effects focus, 31". The
+  // address of a focus knob says which section it points at, which is exactly
+  // the news; a reader who cannot see the panel has no other way to know where
+  // the next knob edit will land.
   function handleFocus(msg) {
     const b = toBytes(msg);
     if (!isCc(b)) return false;
     const cc = ccNumber(b);
     const v = ccValue(b);
+    const c = index.byCc.get(cc);
+    if (!c) return false;
     for (const [group, f] of Object.entries(FOCUS)) {
-      const c = index.byCc.get(cc);
-      if (c && c.key === f.controlId) {
-        focus[group] = v === 0 ? f.layers[0] : f.layers[1];
+      if (c.key === f.controlId) {
+        // Any non-zero means the second layer: the focus button is a button,
+        // and a Nord sends 127 when it is pressed, but which button was asked
+        // for is decided by the map, not by the size of the number.
+        const layer = (c.values && c.values[v] === f.layers[1]) || v !== 0 ? f.layers[1] : f.layers[0];
+        const changed = focus[group] !== layer;
+        focus[group] = layer;
+        if (!changed) return true;
+        const text = `${c.name}: ${ccValueLabel(c, v, layer)}`;
+        onAnnounce(text, { key: c.key, def: c, focus: group, layer });
         return true;
       }
     }
+    // A focus control that is not one of the layer registers (the Stage 4
+    // section focus, the Piano's effects focus) is an ordinary control and
+    // falls through to the debouncer below.
     return false;
   }
 
@@ -212,27 +237,28 @@ export function createSession({
     return line;
   }
 
-  // Call on a timer (or after each message); returns the sentences emitted.
+  // Call on a timer (or after each message); returns what was said.
+  //
+  // Everything that settled since the last call goes out as ONE line. Several
+  // knobs let go at once, or a button that moves two controls, is one event to
+  // the person holding the instrument; announced one sentence per control it
+  // becomes a burst the screen reader reads over itself. The return value is
+  // therefore a list with at most one sentence in it.
   function tick(at = now()) {
-    const out = [];
-    for (const entry of debouncer.tick(at)) {
-      const described = describeEntry(entry);
-      if (!described) continue;
-      out.push(described.text);
-      onAnnounce(described.text, described);
-    }
-    return out;
+    const described = debouncer.tick(at).map(describeEntry).filter(Boolean);
+    return emit(described);
   }
 
   function flushAll(at = now()) {
-    const out = [];
-    for (const entry of debouncer.flushAll()) {
-      const described = describeEntry(entry);
-      if (!described) continue;
-      out.push(described.text);
-      onAnnounce(described.text, described);
-    }
-    return out;
+    return emit(debouncer.flushAll().map(describeEntry).filter(Boolean));
+  }
+
+  function emit(described) {
+    if (!described.length) return [];
+    const text = joinAnnouncements(described.map((d) => d.text));
+    if (!text) return [];
+    onAnnounce(text, { parts: described.map((d) => d.text), keys: described.map((d) => d.key) });
+    return [text];
   }
 
   function setStatus(parts) {

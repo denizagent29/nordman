@@ -50,13 +50,23 @@ export const NORD_PIANO_6 = {
     { cc: 66, key: 'sostenuto', group: 'global', name: 'Sostenuto pedal', kind: 'switch', receiveOnly: true },
     { cc: 67, key: 'soft', group: 'global', name: 'Soft pedal', kind: 'switch', receiveOnly: true },
     { cc: 11, key: 'expression', group: 'global', name: 'Expression pedal', kind: 'range', receiveOnly: true },
-    { cc: 31, key: 'fxFocus', group: 'global', name: 'Effects focus', kind: 'range' },
+    // The focus knob is an enum in disguise: a Nord sends it as a plain CC, but
+    // its positions are discrete, so the number is spoken as a section name.
+    // 0 is the Synth section, 1 the Piano, 2 the Effects, 3 the Organ.
+    { cc: 31, key: 'fxFocus', group: 'global', name: 'Focus', kind: 'enum',
+      values: { 0: 'Synth focus', 1: 'Piano focus', 2: 'Effects focus', 3: 'Organ focus' } },
     { cc: 75, key: 'fxGroupPiano', group: 'global', name: 'Effects group, Piano', kind: 'range' },
     { cc: 76, key: 'fxGroupSynth', group: 'global', name: 'Effects group, Synth', kind: 'range' },
 
     // --- Piano section -----------------------------------------------------
-    { cc: 72, key: 'pianoLayerEnable', group: 'piano', name: 'Piano layer enable', kind: 'switch' },
-    { cc: 109, key: 'pianoLayerFocus', group: 'piano', name: 'Piano layer focus', kind: 'range' },
+    // The two positions of this one knob are the two piano layers, not on/off,
+    // so the value is spoken as the layer: "Piano layer A enabled". A raw 0
+    // reads as "off" on a switch and tells the player nothing.
+    { cc: 72, key: 'pianoLayerEnable', group: 'piano', name: 'Piano layer enable', kind: 'enum',
+      values: { 0: 'Piano layer A enabled', 1: 'Piano layer B enabled' },
+      offIsSilent: true },
+    { cc: 109, key: 'pianoLayerFocus', group: 'piano', name: 'Piano layer', kind: 'enum',
+      values: { 0: 'A', 1: 'B' } },
     { cc: 34, key: 'pianoLayerALevel', group: 'piano', name: 'Piano layer A level', kind: 'range' },
     { cc: 56, key: 'pianoLayerBLevel', group: 'piano', name: 'Piano layer B level', kind: 'range' },
     { cc: 35, key: 'pianoOctaveShift', group: 'piano', name: 'Piano octave shift', kind: 'bipolar' },
@@ -67,10 +77,16 @@ export const NORD_PIANO_6 = {
     { cc: 23, key: 'pianoPedalNoise', group: 'piano', name: 'Piano pedal noise', kind: 'range' },
     { cc: 25, key: 'pianoUnison', group: 'piano', name: 'Piano unison', kind: 'range' },
     { cc: 26, key: 'pianoDynComp', group: 'piano', name: 'Piano dynamic compression', kind: 'range' },
-    { nrpn: [2, 33], key: 'pianoSelect', group: 'piano', name: 'Piano select', kind: 'range' },
+    // The piano memory: two lines of six slots. The address the instrument
+    // sends is not a picture of the sound, so the slot is what gets spoken;
+    // the raw value goes into the capture for whoever maps the library.
+    { nrpn: [2, 33], key: 'pianoSelect', group: 'piano', name: 'Piano select',
+      kind: 'slots', slots: 12, groupSize: 6, groupLabels: ['line A', 'line B'] },
 
     // --- Sample Synth section ---------------------------------------------
-    { cc: 61, key: 'synthLayerEnable', group: 'synth', name: 'Synth layer enable', kind: 'switch' },
+    { cc: 61, key: 'synthLayerEnable', group: 'synth', name: 'Synth layer enable', kind: 'enum',
+      values: { 0: 'Synth layer A enabled', 1: 'Synth layer B enabled' },
+      offIsSilent: true },
     { cc: 115, key: 'synthLayerFocus', group: 'synth', name: 'Synth layer focus', kind: 'range' },
     { cc: 43, key: 'synthLayerALevel', group: 'synth', name: 'Synth layer A level', kind: 'range' },
     { cc: 57, key: 'synthLayerBLevel', group: 'synth', name: 'Synth layer B level', kind: 'range' },
@@ -106,10 +122,10 @@ export const NORD_PIANO_6 = {
 
     // --- Equalizer ---------------------------------------------------------
     { cc: 105, key: 'eqEnable', group: 'eq', name: 'Equalizer enable', kind: 'switch' },
-    { cc: 102, key: 'eqBassGain', group: 'eq', name: 'EQ bass gain', kind: 'bipolar' },
-    { cc: 103, key: 'eqMidGain', group: 'eq', name: 'EQ mid gain', kind: 'bipolar' },
+    { cc: 102, key: 'eqBassGain', group: 'eq', name: 'EQ bass gain', kind: 'bipolar', unit: 'dB' },
+    { cc: 103, key: 'eqMidGain', group: 'eq', name: 'EQ mid gain', kind: 'bipolar', unit: 'dB' },
     { cc: 107, key: 'eqMidFreq', group: 'eq', name: 'EQ mid frequency', kind: 'range' },
-    { cc: 104, key: 'eqTrebleGain', group: 'eq', name: 'EQ treble gain', kind: 'bipolar' },
+    { cc: 104, key: 'eqTrebleGain', group: 'eq', name: 'EQ treble gain', kind: 'bipolar', unit: 'dB' },
     { cc: 33, key: 'eqGlobal', group: 'eq', name: 'Equalizer global', kind: 'switch' },
 
     // --- Amp ---------------------------------------------------------------

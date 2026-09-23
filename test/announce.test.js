@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatValue, describeChange, statusLine } from '../src/announce.js';
+import { formatValue, describeChange, statusLine, joinAnnouncements } from '../src/announce.js';
 
 const knob = { name: 'Reverb mix', kind: 'range' };
 const sw = { name: 'Chorus', kind: 'switch' };
@@ -28,7 +28,7 @@ test('an enum with an unmapped value still says something usable', () => {
 });
 
 test('a bipolar knob says which side of centre it is on', () => {
-  assert.equal(formatValue(bipolar, 64), 'centre 64');
+  assert.equal(formatValue(bipolar, 64), 'centre (64)');
   assert.equal(formatValue(bipolar, 74), 'plus 10 (74)');
   assert.equal(formatValue(bipolar, 54), 'minus 10 (54)');
 });
