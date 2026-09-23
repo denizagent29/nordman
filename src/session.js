@@ -17,7 +17,7 @@
 import { ccNumber, ccValue, channel, isCc, toBytes } from './midi.js';
 import { createDebouncer } from './debounce.js';
 import { describeChange, statusLine } from './announce.js';
-import { createLog, controlKey } from './log.js';
+import { createLog, controlKey, isNoteMessage } from './log.js';
 import { NORD_PIANO_6 } from '../data/nord-piano-6.js';
 import { NORD_STAGE_4 } from '../data/nord-stage-4.js';
 
@@ -169,6 +169,14 @@ export function createSession({
     if (!b.length) return null;
 
     if (handleFocus(b)) return null;
+
+    // Playing is not a controller change. Notes are counted by the log and
+    // stop here: they used to fall through to the debouncer, where controlKey
+    // answered null, every keypress piled into one `null` bucket, and a
+    // release value of 0 made the announcer read a note off as a knob being
+    // turned down to zero. A screen reader for a keyboard that talks while
+    // you play is unusable.
+    if (isNoteMessage(b)) return line;
 
     if (isCc(b)) {
       const cc = ccNumber(b);

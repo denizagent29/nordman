@@ -243,3 +243,55 @@ test('a documented shared address is allowed and resolves to one of the two', ()
   assert.deepEqual(collisions, []);
   assert.ok(byCc.get(15).sharedWith, 'CC 15 is marked as shared');
 });
+
+// ---------------------------------------------------------------------------
+// Playing is not a control change
+// ---------------------------------------------------------------------------
+
+const noteOn = (n = 60, v = 100, ch = 0) => Uint8Array.from([0x90 | ch, n, v]);
+const noteOff = (n = 60, ch = 0) => Uint8Array.from([0x80 | ch, n, 0]);
+
+test('playing never reaches the status line', () => {
+  // The bug this guards: notes fell through to the debouncer, controlKey
+  // answered null for all of them, and they piled into one shared bucket. A
+  // note off carries value 0, so the announcer read it as a knob turned down
+  // to zero — the owner heard his own playing as controller changes.
+  const { session, clock, heard } = harness();
+  session.feed(noteOn(60, 100));
+  clock.advance(200);
+  assert.deepEqual(session.tick(), [], 'a keypress says nothing');
+  session.feed(noteOff(60));
+  clock.advance(200);
+  assert.deepEqual(session.tick(), [], 'a release says nothing either');
+  assert.deepEqual(heard, []);
+});
+
+test('a burst of playing cannot masquerade as a knob sweep', () => {
+  const { session, clock, heard } = harness();
+  for (let i = 0; i < 40; i++) {
+    session.feed(noteOn(60 + (i % 12), 100));
+    session.feed(noteOff(60 + (i % 12)));
+    clock.advance(10);
+  }
+  clock.advance(500);
+  assert.deepEqual(session.tick(), []);
+  assert.deepEqual(heard, [], 'none of it is an announcement');
+});
+
+test('a knob still speaks while the other hand is playing', () => {
+  // Suppressing notes must not suppress controllers mixed in with them.
+  const { session, clock, heard } = harness();
+  session.feed(noteOn(64, 100));
+  session.feed(cc(19, 90));
+  session.feed(noteOff(64));
+  clock.advance(200);
+  assert.deepEqual(session.tick(), ['Reverb type, 90']);
+  assert.deepEqual(heard, ['Reverb type, 90']);
+});
+
+test('playing is still counted in the capture', () => {
+  const { session } = harness();
+  for (let i = 0; i < 5; i++) session.feed(noteOn(60 + i, 100));
+  assert.equal(session.log.counters.note, 5, 'the log still saw them');
+  assert.equal(session.log.lines.length, 0, 'but they are not listed');
+});
