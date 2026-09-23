@@ -1,0 +1,11 @@
+{
+  "name": "nordman",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Screen reader and full MIDI control surface for Nord Stage 4 / Nord Piano 6",
+  "scripts": {
+    "test": "node --test 'test/*.test.js'"
+  },
+  "license": "MIT"
+}

@@ -35,6 +35,7 @@ export function createDebouncer({ quietMs = QUIET_MS, now = () => Date.now() } =
         pending.delete(key);
         lastFlushed.set(key, entry.value);
         ready.push({ key, ...entry });
+        continue;
       }
     }
     return ready;
