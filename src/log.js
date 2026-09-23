@@ -223,24 +223,29 @@ export function createLog({
       .map((e) => ({ ...e, values: undefined }));
   }
 
-  // The one-line count that sits above the capture. A property rather than a
-  // function so the caller can compare it against what it last displayed —
-  // a live region announces on change, so the caller must only write when the
-  // string differs, and it cannot know that without being handed the string.
+  // The one-line count that sits above the capture. It is NOT a live region:
+  // it counts every note and every twitch of a knob, so if it announced itself
+  // it would talk over the status line continuously — the owner's words were
+  // "пиздец как много говорит". The page refreshes it silently and the owner
+  // reads it when they want it, and it is plain text for that reason.
+  //
+  // Notes are counted but deliberately left out of the total: a burst of
+  // playing is not what a knob-sweep capture is about, and including them made
+  // the number climb while the instrument was only being played.
   const summaryText = () => {
     const c = counters;
     const recorded = lines.length;
-    const total = recorded + c.note + c.clock;
+    const total = lines.length + c.clock;
     if (total === 0) return 'Nothing heard yet — is the instrument on?';
     const bits = [];
     // Switches land in `cc` too, so this is "controllers", not "knobs": a
     // pedal down and a knob moved are the same message shape.
     if (c.cc) bits.push(`${c.cc} controllers`);
     if (c.nrpn) bits.push(`${c.nrpn} NRPN`);
-    if (c.note) bits.push(`${c.note} notes`);
     if (c.clock) bits.push('clock running');
     if (c.sysex) bits.push(`${c.sysex} sysex`);
     if (c.other) bits.push(`${c.other} other`);
+    if (c.note) bits.push(`${c.note} notes not listed`);
     const plural = total === 1 ? '' : 's';
     return `${total} MIDI event${plural} heard — ${bits.join(', ')}.`;
   };

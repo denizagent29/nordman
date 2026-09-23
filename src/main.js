@@ -58,11 +58,11 @@ function main() {
   const logNode = $('#log');
   const summaryNode = $('#log-summary');
 
-  // Only touch the summary when its text actually differs. A live region
-  // announces on *change*, and assigning the same string to textContent is
-  // still a change as far as the DOM is concerned — so a two-per-second timer
-  // that writes unconditionally turns "0 events" into a stutter that buries
-  // the status line under it. The text is identical; the write is what talks.
+  // The only live region on this page is the status line. The capture count is
+  // ordinary text that changes constantly — it counts every note and every
+  // twitch — so it must never announce: as a live region it spoke over the
+  // status line it sits under, permanently. It is skipped here when unchanged
+  // as well, so the DOM is not rewritten twice a second for nothing.
   let summaryText = null;
   const refresh = () => {
     renderLog(app.session, logNode);

@@ -200,14 +200,24 @@ function readIndex() {
 // Live regions
 // ---------------------------------------------------------------------------
 
-test('there are exactly two live regions, and both are polite', () => {
-  // Two live regions both firing on a timer is how "0 events" ends up
-  // interrupting the status line it exists to serve. The count of live
-  // attributes only — a comment mentioning aria-live is not a live region.
+test('there is exactly one live region on the page', () => {
+  // Two live regions both firing on a timer is how the capture count ended up
+  // talking over the status line it sits under — the owner's words were
+  // "пиздец как много говорит". The status line is the only thing allowed to
+  // speak unprompted; the count is read on demand. Comments are stripped
+  // first, because a comment mentioning aria-live is not a live region.
   const html = readIndex().replace(/<!--[\s\S]*?-->/g, '');
-  assert.equal((html.match(/aria-live=/g) || []).length, 2);
-  assert.equal((html.match(/aria-live="polite"/g) || []).length, 2);
+  assert.equal((html.match(/aria-live=/g) || []).length, 1);
+  assert.match(html, /id="status"[^>]*aria-live="polite"/);
   assert.doesNotMatch(html, /aria-live="assertive"/);
+});
+
+test('the capture count is readable on demand, without a live region', () => {
+  // Out of the tab order a blind reader cannot reach it at all; as a live
+  // region it never stops talking. Focusable plain text is the middle ground.
+  const html = readIndex().replace(/<!--[\s\S]*?-->/g, '');
+  assert.match(html, /id="log-summary" tabindex="0"/);
+  assert.doesNotMatch(html, /id="log-summary"[^>]*aria-live/);
 });
 
 test('the capture count is only written to when its text changes', () => {
@@ -229,10 +239,17 @@ test('the capture count breaks down what was heard', () => {
   const log = createLog({});
   log.feed(Uint8Array.from([0xb0, 19, 42]));
   assert.match(log.summaryText, /^1 MIDI event heard/);
-  log.feed(Uint8Array.from([0x90, 60, 100]));
-  assert.match(log.summaryText, /2 MIDI events heard/);
   assert.match(log.summaryText, /1 controllers/);
-  assert.match(log.summaryText, /1 notes/);
+});
+
+test('notes never move the total, so playing cannot change the headline', () => {
+  // The whole complaint: the number climbed while he was only playing. Notes
+  // are still counted for the reader — the total is not where they belong.
+  const log = createLog({});
+  log.feed(Uint8Array.from([0xb0, 19, 42]));
+  for (let i = 0; i < 200; i++) log.feed(Uint8Array.from([0x90, 60, 100]));
+  assert.match(log.summaryText, /^1 MIDI event heard/, 'playing does not add events');
+  assert.match(log.summaryText, /200 notes not listed/);
 });
 
 test('clearing resets the spoken count', () => {
